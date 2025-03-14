@@ -38,7 +38,7 @@ Feel free to raise an issue or contribute to this project! 🚀
 🚀 **Setup and Run the LLM-Powered Notebook**
 
 1️⃣ Clone the Repository
-git clone [https://github.com/your-username/your-repo-name.git](https://github.com/Vansh8077/LLM-Powered-Jupyter-Notebook)
+git clone https://github.com/Vansh8077/LLM-Powered-Jupyter-Notebook
 cd LLM-Powered-Jupyter-Notebook
 2️⃣ Install Dependencies
 Ensure you have Python installed, then install required dependencies using:
