@@ -34,6 +34,8 @@ Use Cmd + Shift + X to process input and receive AI-generated explanations.
 🔗 Contributions & Issues
 Feel free to raise an issue or contribute to this project! 🚀
 
+**Note**
+For windows its still under development,now it works for mac-os only 
 
 🚀 **Setup and Run the LLM-Powered Notebook**
 
