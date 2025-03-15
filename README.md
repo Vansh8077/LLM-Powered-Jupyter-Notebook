@@ -61,7 +61,7 @@ Feel free to **raise an issue** or **contribute** to this project! 🚀
 
 ### 4️⃣ (Optional) Run in a Virtual Environment
    To avoid conflicts, you can use a virtual environment:
-   - **A)** `python -m venv venv`
-   - **B)** `source venv/bin/activate`  *(On Windows use: `venv\Scripts\activate`)*
+   - **A)** `conda create -n myenv python=3.9` (minimum python==3.9 version is required)
+   - **B)** `conda activate myenv`
    - **C)** `pip install -r requirements.txt`
    - **D)** `python llm-powered-notebook.py`
