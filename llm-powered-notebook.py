@@ -29,8 +29,10 @@ import copy
 copied_texts = set()
 import platform
 import pyautogui
+jupyter_process=None
 #Check for jupyter server
 def jupyter_server():
+    global jupyter_process
     result = subprocess.run(["jupyter", "notebook", "list"], capture_output=True, text=True)
     output = result.stdout.strip()
     pattern = r"(http://[^\s]+)\?token=([\w]+)"
@@ -38,12 +40,16 @@ def jupyter_server():
     
     if not match:
         print("No running Jupyter Notebook found. Starting one...")
-        subprocess.Popen(["jupyter", "notebook"])
-        time.sleep(5)  # Give Jupyter time to start
-        result = subprocess.run(["jupyter", "notebook", "list"], capture_output=True, text=True)
-        output = result.stdout.strip()
-        match = re.search(pattern, output)
-    
+        jupyter_process=subprocess.Popen(["jupyter", "notebook"])
+        start_time = time.time()
+        while time.time() - start_time < 30:
+        # time.sleep(5)  # Give Jupyter time to start
+            result = subprocess.run(["jupyter", "notebook", "list"], capture_output=True, text=True)
+            output = result.stdout.strip()
+            match = re.search(pattern, output)
+            if match:
+                break
+            time.sleep(1)
         if not match:
             print("Failed to start Jupyter Notebook.")
             exit(1)
@@ -115,16 +121,17 @@ def modify_notebook(host, token, notebook_name, initial=0, gen_ai_cells=[],error
             if session['notebook']['path'] == notebook_name:
                 session_id = session['id']
                 break
-        print(f"Session ID: {session_id}")
+        # print(f"Session ID: {session_id}")
+        
         if not session_id:
             print("❌ No active session found for the notebook. Ensure the notebook is open and running.")
             return False
 
     # Step 3: Force a checkpoint/save operation to persist outputs to disk
     checkpoint_path = f"{host}/api/contents/{notebook_name}/checkpoints"
-    print(f"Checkpoint Path: {checkpoint_path}")
+    # print(f"Checkpoint Path: {checkpoint_path}")
     response = requests.post(checkpoint_path, headers=headers)
-    print(f"Checkpoint Response: {response.text}")
+    # print(f"Checkpoint Response: {response.text}")
     if response.status_code not in [200, 201]:
         print("❌ Failed to create checkpoint/save notebook.")
         return False
@@ -140,8 +147,8 @@ def modify_notebook(host, token, notebook_name, initial=0, gen_ai_cells=[],error
     notebook_content = response.json()
 
     # Debug: Print the fetched content to check if outputs are present
-    print("Fetched Notebook Content Before Modification:")
-    print(json.dumps(notebook_content, indent=2))
+    # print("Fetched Notebook Content Before Modification:")
+    # print(json.dumps(notebook_content, indent=2))
 
     # Step 5: Create a deep copy of the current content (including outputs) for backup
     original_content = copy.deepcopy(notebook_content)
@@ -154,7 +161,7 @@ def modify_notebook(host, token, notebook_name, initial=0, gen_ai_cells=[],error
     }
 
     # Step 7: Define the dynamic cells to append
-    print(error_message,len(notebook_content['content']['cells']))
+    # print(error_message,len(notebook_content['content']['cells']))
     if initial == 0 and gen_ai_cells==[]:
         dynamic_cells = [
             {
@@ -179,20 +186,20 @@ def modify_notebook(host, token, notebook_name, initial=0, gen_ai_cells=[],error
         if error_message=='yes' and len(notebook_content['content']['cells'])<=3:
             dynamic_cells=[gen_ai_cells]
         elif len(notebook_content['content']['cells'])>3 and error_message=='no':
-            notebook_content['content']['cells'][3]['source']='Everything seems fine ,You can start working now'
+            notebook_content['content']['cells'][3]['source']=gen_ai_cells['source']
             dynamic_cells=''
         elif len(notebook_content['content']['cells'])>3 and error_message=='yes':
             dynamic_cells=''
-        elif error_message=='no' and len(notebook_content['content']['cells'])<3:
+        elif error_message=='no' and len(notebook_content['content']['cells'])<=3:
             dynamic_cells=[gen_ai_cells]
     else:
-        dynamic_cells = gen_ai_cells
+         dynamic_cells = gen_ai_cells
     if dynamic_cells!='':
         notebook_content['content']['cells'].extend(dynamic_cells)
-
+    # print(dynamic_cells)
     # Debug: Print the modified content before saving
-    print("Modified Notebook Content Before Saving:")
-    print(json.dumps(notebook_content, indent=2))
+    # print("Modified Notebook Content Before Saving:")
+    # print(json.dumps(notebook_content, indent=2))
 
     # Step 9: Save the modified notebook
     response = requests.put(notebook_path, headers=headers, data=json.dumps(notebook_content))
@@ -223,35 +230,56 @@ def extract_api_key(host,token,notebook_name):
             time.sleep(5)
             continue
         try:
-            print('api_key=',groq_api_key)
+            # print('api_key=',groq_api_key)
             technical_model=ChatGroq(api_key=groq_api_key,temperature=0.5,model='qwen-2.5-coder-32b')
             res=technical_model.invoke('hi')
-            print(res)
-            start_message={
-                    'cell_type': 'markdown',
-                    'metadata': {},
-                    'source': 'Everything seems fine ,You can start working now'
-                }
+            # print(res)
+            if platform.system() == "Windows":
+                copy_shortcut = "<Shift> + <Ctrl> + Z"
+                execute_shortcut = "<Shift> + <Ctrl> + X"
+            elif platform.system() == "Darwin":  # macOS
+                copy_shortcut = "<Shift> + <Cmd> + Z"
+                execute_shortcut = "<Shift> + <Cmd> + X"
+            else:
+                copy_shortcut = "Unsupported OS"
+                execute_shortcut = "Unsupported OS"
+
+            start_message = {
+                'cell_type': 'markdown',
+                'metadata': {},
+                'source': (
+                    "🎉 **You're all set!** Your AI-powered Jupyter Notebook is ready. 🚀\n\n"
+                    "🔑 **API Key Verified Successfully!** ✅\n\n"
+                    "✨ Now, unleash the power of AI to enhance your coding experience! 🧠💡\n\n"
+                    "**🛠️ Shortcut Guide:**\n"
+                    f"🔹 **Copy Content:** Press `{copy_shortcut}`\n"
+                    f"🔹 **Execute & Process:** Press `{execute_shortcut}`\n\n"
+                    "Happy Coding! 🚀🔥\n\n"
+                    "⚠️ **Important:** Press **Ctrl + C** to stop the session safely.\n\n"
+                    "💾 **Please save your notebook contents** before stopping.\n\n"
+                    "🔴 If you do not save, your progress will be lost!\n\n"
+                )
+            }
+            # print('called')
             modify_notebook(host, token, notebook_name, 0, start_message,'no')
             launch_reload_notebook(notebook_name, token, 1)
             break
         except:
-            print('wrong api key')
-            error_content={
-                    'cell_type': 'markdown',
-                    'metadata': {},
-                    'source': 'WRONG API KEY PROVIDED\n Execute same cell again'
-                }
+            # print('wrong api key')
+            error_content = {
+                'cell_type': 'markdown',
+                'metadata': {},
+                'source': (
+                    "❌ **Invalid API Key!** 🔑\n\n"
+                    "⚠️ Oops! The API key you entered is incorrect.\n"
+                    "🔄 Please re-run this cell and enter the correct key to continue. 🚀"
+                )
+            }
+            # print('called')
             modify_notebook(host, token, notebook_name, 0, error_content,'yes')
             launch_reload_notebook(notebook_name, token, 1)
     return groq_api_key
 
-
-host,token=jupyter_server()
-notebook_name,notebook_path=create_notebook(host, token)
-modify_notebook(host, token, notebook_name)
-launch_reload_notebook(notebook_name,token)
-groq_api_key=extract_api_key(host,token,notebook_name)
 def generate_fix(user_query,memo):
         global technical_conversation,technical_memory,groq_api_key
         technical_model=ChatGroq(api_key=groq_api_key,temperature=0.5,model='qwen-2.5-coder-32b')
@@ -346,7 +374,7 @@ def process_error(host, token, notebook_name):
         print("No copied text to process.")
         return
     error_text = "\n".join(copied_texts)
-    print("Copied Errors:\n", error_text)
+    # print("Copied Errors:\n", error_text)
     copied_texts = set()
     memo = 0 if technical_memory is None else 1
     code_list, explanation_list = generate_fix(error_text, memo)
@@ -358,8 +386,8 @@ def process_error(host, token, notebook_name):
                     'source': 'WRONG API KEY PROVIDED\n Execute same cell again'
                 })
     else:
-        print(code_list)
-        print(explanation_list)
+        # print(code_list)
+        # print(explanation_list)
         max_length = max(len(code_list), len(explanation_list))
         for i in range(max_length):
             if i < len(code_list):
@@ -403,11 +431,33 @@ hotkeys = {
 def for_canonical(f):
     return lambda k: f(listener.canonical(k))
 
-with keyboard.Listener(
-        on_press=lambda key: [for_canonical(hotkey.press)(key) for hotkey in hotkey_objects],
-        on_release=lambda key: [for_canonical(hotkey.release)(key) for hotkey in hotkey_objects]
-) as listener:
-    hotkey_objects = [keyboard.HotKey(keyboard.HotKey.parse(hk), func) for hk, func in hotkeys.items()]
-    print("Press <cmd>+<shift>+z to save copied text.")
-    print("Press <cmd>+<shift>+x to process all saved errors.")
-    listener.join()
+if __name__ == '__main__':
+    try:
+        print("\n⚠️ **Important:** Press **Ctrl + C** to stop the session safely.")
+        print("💾 **Please save your notebook contents** before stopping.")
+        print("🔴 If you do not save, your progress will be lost!")
+        host, token = jupyter_server()
+        notebook_name, notebook_path = create_notebook(host, token)
+        modify_notebook(host, token, notebook_name)
+        launch_reload_notebook(notebook_name, token)
+        groq_api_key = extract_api_key(host, token, notebook_name)
+        with keyboard.Listener(
+                on_press=lambda key: [for_canonical(hotkey.press)(key) for hotkey in hotkey_objects],
+                on_release=lambda key: [for_canonical(hotkey.release)(key) for hotkey in hotkey_objects]
+        ) as listener:
+            hotkey_objects = [keyboard.HotKey(keyboard.HotKey.parse(hk), func) for hk, func in hotkeys.items()]
+            print("\n⌨️ **Keyboard Shortcuts:**")
+            print("📌 Press **Cmd + Shift + Z** (Mac) / **Ctrl + Shift + Z** (Windows) to save copied text.")
+            print("📌 Press **Cmd + Shift + X** (Mac) / **Ctrl + Shift + X** (Windows) to process all saved errors.")
+            listener.join()
+    except KeyboardInterrupt:
+        confirm = input("\n⚠️ Do you want to stop the Jupyter session? (Press **Y** to confirm, any other key to cancel): ").strip().lower()
+        if confirm == 'y':
+            # print(jupyter_process)
+            jupyter_process.terminate()  # Gracefully stop it
+            jupyter_process.wait()
+            print("✅ Jupyter Server has been stopped.")
+        else:
+            print("✅ Resuming session...")
+
+
