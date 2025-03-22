@@ -40,7 +40,7 @@ def jupyter_server():
     
     if not match:
         print("No running Jupyter Notebook found. Starting one...")
-        jupyter_process=subprocess.Popen(["jupyter", "notebook"])
+        jupyter_process=subprocess.Popen( ["jupyter", "notebook", "--NotebookApp.disable_check_xsrf=True"])
         start_time = time.time()
         while time.time() - start_time < 30:
         # time.sleep(5)  # Give Jupyter time to start
@@ -64,7 +64,7 @@ def jupyter_server():
 def create_notebook(host, token):
     headers = {'Authorization': f'Token {token}', 'Content-Type': 'application/json'}
     notebook_name = f"dynamic_notebook_{str(uuid.uuid1())[1:11]}.ipynb"
-    notebook_path = f"{host}/api/contents/{notebook_name}"
+    notebook_path = f"{host}api/contents/{notebook_name}"
 
     # Create the notebook
     notebook_data = {"type": "notebook"}
@@ -105,8 +105,8 @@ def save_notebook():
 
 def modify_notebook(host, token, notebook_name, initial=0, gen_ai_cells=[],error_message='yes'):
     global driver
-    notebook_path = f"{host}/api/contents/{notebook_name}"
-    session_path = f"{host}/api/sessions"
+    notebook_path = f"{host}api/contents/{notebook_name}"
+    session_path = f"{host}api/sessions"
     headers = {'Authorization': f'Token {token}', 'Content-Type': 'application/json'}
     # Step 2: Fetch session information if initial is set
     session_id = None
